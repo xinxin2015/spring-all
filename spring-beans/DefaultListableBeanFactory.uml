@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>JAVA</ID>
+  <OriginalElement />
+  <nodes>
+    <node x="0.0" y="79.0">org.springframework.beans.factory.HierarchicalBeanFactory</node>
+    <node x="0.0" y="232.0">org.springframework.core.SimpleAliasRegistry</node>
+    <node x="0.0" y="306.0">org.springframework.beans.factory.config.SingletonBeanRegistry</node>
+    <node x="278.0" y="306.0">java.lang.SuppressWarnings</node>
+    <node x="235.0" y="232.0">org.springframework.beans.factory.support.BeanDefinitionRegistry</node>
+    <node x="0.0" y="380.0">java.io.Serializable</node>
+    <node x="151.25" y="153.0">org.springframework.core.AliasRegistry</node>
+    <node x="179.0" y="0.0">org.springframework.beans.factory.BeanFactory</node>
+    <node x="271.0" y="79.0">org.springframework.beans.factory.ListableBeanFactory</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="org.springframework.core.SimpleAliasRegistry" target="org.springframework.core.AliasRegistry">
+      <point x="0.0" y="-14.5" />
+      <point x="107.5" y="207.0" />
+      <point x="191.5" y="207.0" />
+      <point x="-40.25" y="14.5" />
+    </edge>
+    <edge source="org.springframework.beans.factory.support.BeanDefinitionRegistry" target="org.springframework.core.AliasRegistry">
+      <point x="0.0" y="-14.5" />
+      <point x="356.0" y="207.0" />
+      <point x="272.0" y="207.0" />
+      <point x="40.25" y="14.5" />
+    </edge>
+    <edge source="org.springframework.beans.factory.ListableBeanFactory" target="org.springframework.beans.factory.BeanFactory">
+      <point x="0.0" y="-14.5" />
+      <point x="375.5" y="54.0" />
+      <point x="286.25" y="54.0" />
+      <point x="35.75" y="14.5" />
+    </edge>
+    <edge source="org.springframework.beans.factory.HierarchicalBeanFactory" target="org.springframework.beans.factory.BeanFactory">
+      <point x="0.0" y="-14.5" />
+      <point x="125.5" y="54.0" />
+      <point x="214.75" y="54.0" />
+      <point x="-35.75" y="14.5" />
+    </edge>
+  </edges>
+  <settings layout="Hierarchic Group" zoom="0.82875" x="703.5" y="421.50000000000006" />
+  <SelectedNodes>
+    <node>org.springframework.beans.factory.config.SingletonBeanRegistry</node>
+  </SelectedNodes>
+  <Categories />
+  <SCOPE>All</SCOPE>
+  <VISIBILITY>private</VISIBILITY>
+</Diagram>
+
