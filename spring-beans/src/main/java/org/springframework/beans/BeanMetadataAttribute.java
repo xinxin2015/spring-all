@@ -21,6 +21,11 @@ public class BeanMetadataAttribute implements BeanMetadataElement {
     @Nullable
     private Object source;
 
+    /**
+     * Create a new AttributeValue instance.
+     * @param name the name of the attribute (never {@code null})
+     * @param value the value of the attribute (possibly before type conversion)
+     */
     public BeanMetadataAttribute(String name,@Nullable Object value) {
         Assert.notNull(name,"Name must not be null");
         this.name = name;
