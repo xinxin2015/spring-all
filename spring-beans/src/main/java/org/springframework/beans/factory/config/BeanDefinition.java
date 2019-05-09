@@ -125,7 +125,7 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
      * Return whether this bean should be lazily initialized, i.e. not
      * eagerly instantiated on startup. Only applicable to a singleton bean.
      */
-    boolean lazyInit();
+    boolean isLazyInit();
 
     /**
      * Set the names of the beans that this bean depends on being initialized.
@@ -137,7 +137,7 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
      * Return the bean names that this bean depends on.
      */
     @Nullable
-    String[] dependsOn();
+    String[] getDependsOn();
 
     /**
      * Set whether this bean is a candidate for getting autowired into some other bean.
@@ -235,7 +235,7 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
      * @since 5.1
      */
     @Nullable
-    String getInitMethod();
+    String getInitMethodName();
 
     /**
      * Set the name of the destroy method.
@@ -319,6 +319,6 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
      * originator chain to find the original BeanDefinition as defined by the user.
      */
     @Nullable
-    BeanDefinition getOriginationBeanDefinition();
+    BeanDefinition getOriginatingBeanDefinition();
 
 }
