@@ -337,7 +337,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
      * @throws ClassNotFoundException if the class name could be resolved
      */
     @Nullable
-    public Class<?> resolveBeanClass(@Nullable ClassLoader classLoader) {
+    public Class<?> resolveBeanClass(@Nullable ClassLoader classLoader) throws ClassNotFoundException {
         String className = getBeanClassName();
         if (className == null) {
             return null;
@@ -754,15 +754,27 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
         return propertyValues;
     }
 
+    /**
+     * Return if there are property values values defined for this bean.
+     * @since 5.0.2
+     */
     @Override
     public boolean hasPropertyValues() {
         return (this.propertyValues != null && !this.propertyValues.isEmpty());
     }
 
+    /**
+     * Specify method overrides for the bean, if any.
+     */
     public void setMethodOverrides(MethodOverrides methodOverrides) {
         this.methodOverrides = methodOverrides;
     }
 
+    /**
+     * Return information about methods to be overridden by the IoC
+     * container. This will be empty if there are no method overrides.
+     * <p>Never returns {@code null}.
+     */
     public MethodOverrides getMethodOverrides() {
         if (methodOverrides == null) {
             methodOverrides = new MethodOverrides();
@@ -770,100 +782,181 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
         return methodOverrides;
     }
 
+    /**
+     * Return if there are method overrides defined for this bean.
+     * @since 5.0.2
+     */
     public boolean hasMethodOverrides() {
         return (this.methodOverrides != null && !this.methodOverrides.isEmpty());
     }
 
+    /**
+     * Set the name of the initializer method.
+     * <p>The default is {@code null} in which case there is no initializer method.
+     */
     @Override
     public void setInitMethodName(@Nullable String initMethodName) {
         this.initMethodName = initMethodName;
     }
 
+    /**
+     * Return the name of the initializer method.
+     */
     @Override
     @Nullable
     public String getInitMethodName() {
         return initMethodName;
     }
 
+    /**
+     * Specify whether or not the configured init method is the default.
+     * <p>The default value is {@code false}.
+     * @see #setInitMethodName
+     */
     public void setEnforceInitMethod(boolean enforceInitMethod) {
         this.enforceInitMethod = enforceInitMethod;
     }
 
+    /**
+     * Indicate whether the configured init method is the default.
+     * @see #getInitMethodName()
+     */
     public boolean isEnforceInitMethod() {
         return enforceInitMethod;
     }
 
+    /**
+     * Set the name of the destroy method.
+     * <p>The default is {@code null} in which case there is no destroy method.
+     */
     @Override
     public void setDestroyMethodName(@Nullable String destroyMethodName) {
         this.destroyMethodName = destroyMethodName;
     }
 
+    /**
+     * Return the name of the destroy method.
+     */
     @Override
     @Nullable
     public String getDestroyMethodName() {
         return destroyMethodName;
     }
 
+    /**
+     * Specify whether or not the configured destroy method is the default.
+     * <p>The default value is {@code false}.
+     * @see #setDestroyMethodName
+     */
     public void setEnforceDestroyMethod(boolean enforceDestroyMethod) {
         this.enforceDestroyMethod = enforceDestroyMethod;
     }
 
+    /**
+     * Indicate whether the configured destroy method is the default.
+     * @see #getDestroyMethodName
+     */
     public boolean isEnforceDestroyMethod() {
         return enforceDestroyMethod;
     }
 
+    /**
+     * Set whether this bean definition is 'synthetic', that is, not defined
+     * by the application itself (for example, an infrastructure bean such
+     * as a helper for auto-proxying, created through {@code <aop:config>}).
+     */
     public void setSynthetic(boolean synthetic) {
         this.synthetic = synthetic;
     }
 
+    /**
+     * Return whether this bean definition is 'synthetic', that is,
+     * not defined by the application itself.
+     */
     public boolean isSynthetic() {
         return synthetic;
     }
 
+    /**
+     * Set the role hint for this {@code BeanDefinition}.
+     */
     @Override
     public void setRole(int role) {
         this.role = role;
     }
 
+    /**
+     * Return the role hint for this {@code BeanDefinition}.
+     */
     @Override
     public int getRole() {
         return role;
     }
 
+    /**
+     * Set a human-readable description of this bean definition.
+     */
     @Override
     public void setDescription(@Nullable String description) {
         this.description = description;
     }
 
+    /**
+     * Return a human-readable description of this bean definition.
+     */
     @Override
     @Nullable
     public String getDescription() {
         return description;
     }
 
+    /**
+     * Set the resource that this bean definition came from
+     * (for the purpose of showing context in case of errors).
+     */
     public void setResource(@Nullable Resource resource) {
         this.resource = resource;
     }
 
+    /**
+     * Return the resource that this bean definition came from.
+     */
     @Nullable
     public Resource getResource() {
         return resource;
     }
 
+    /**
+     * Set a description of the resource that this bean definition
+     * came from (for the purpose of showing context in case of errors).
+     */
     public void setResourceDescription(@Nullable String resourceDescription) {
         this.resource = (resourceDescription != null ? new DescriptiveResource(resourceDescription) : null);
     }
 
+    /**
+     * Return a description of the resource that this bean definition
+     * came from (for the purpose of showing context in case of errors).
+     */
     @Override
     @Nullable
     public String getResourceDescription() {
         return this.resource != null ? this.resource.getDescription() : null;
     }
 
+    /**
+     * Set the originating (e.g. decorated) BeanDefinition, if any.
+     */
     public void setOriginatingBeanDefinition(BeanDefinition originatingBd) {
         this.resource = new BeanDefinitionResource(originatingBd);
     }
 
+    /**
+     * Return the originating BeanDefinition, or {@code null} if none.
+     * Allows for retrieving the decorated bean definition, if any.
+     * <p>Note that this method returns the immediate originator. Iterate through the
+     * originator chain to find the original BeanDefinition as defined by the user.
+     */
     @Override
     @Nullable
     public BeanDefinition getOriginatingBeanDefinition() {
@@ -871,6 +964,10 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
                 ((BeanDefinitionResource) this.resource).getBeanDefinition() : null);
     }
 
+    /**
+     * Validate this bean definition.
+     * @throws BeanDefinitionValidationException in case of validation failure
+     */
     public void validate() throws BeanDefinitionValidationException {
         if (hasMethodOverrides() && getFactoryMethodName() != null) {
             throw new BeanDefinitionValidationException(
@@ -883,6 +980,11 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
         }
     }
 
+    /**
+     * Validate and prepare the method overrides defined for this bean.
+     * Checks for existence of a method with the specified name.
+     * @throws BeanDefinitionValidationException in case of validation failure
+     */
     public void prepareMethodOverrides() throws BeanDefinitionValidationException {
         if (hasMethodOverrides()) {
             Set<MethodOverride> overrides = getMethodOverrides().getOverrides();
@@ -894,6 +996,13 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
         }
     }
 
+    /**
+     * Validate and prepare the given method override.
+     * Checks for existence of a method with the specified name,
+     * marking it as not overloaded if none found.
+     * @param mo the MethodOverride object to validate
+     * @throws BeanDefinitionValidationException in case of validation failure
+     */
     protected void prepareMethodOverride(MethodOverride mo) throws BeanDefinitionValidationException {
         int count = ClassUtils.getMethodCountForName(getBeanClass(),mo.getMethodName());
         if (count == 0) {
@@ -905,11 +1014,21 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
         }
     }
 
+    /**
+     * Public declaration of Object's {@code clone()} method.
+     * Delegates to {@link #cloneBeanDefinition()}.
+     * @see Object#clone()
+     */
     @Override
     protected Object clone() throws CloneNotSupportedException {
         return cloneBeanDefinition();
     }
 
+    /**
+     * Clone this bean definition.
+     * To be implemented by concrete subclasses.
+     * @return the cloned bean definition object
+     */
     public abstract AbstractBeanDefinition cloneBeanDefinition();
 
     @Override
