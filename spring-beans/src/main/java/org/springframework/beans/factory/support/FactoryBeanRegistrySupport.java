@@ -33,7 +33,7 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
      * or {@code null} if the type cannot be determined yet
      */
     @Nullable
-    protected Class<?> getTypeForBeanFactory(final FactoryBean<?> factoryBean) {
+    protected Class<?> getTypeForFactoryBean(final FactoryBean<?> factoryBean) {
         try {
             if (System.getSecurityManager() != null) {
                 return AccessController.doPrivileged((PrivilegedAction<Class<?>>) factoryBean::getObjectType,

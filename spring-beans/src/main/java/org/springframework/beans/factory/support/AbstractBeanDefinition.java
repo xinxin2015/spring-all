@@ -11,6 +11,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Constructor;
 import java.util.*;
@@ -257,6 +258,86 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
     }
 
     /**
+     * Override settings in this bean definition (presumably a copied parent
+     * from a parent-child inheritance relationship) from the given bean
+     * definition (presumably the child).
+     * <ul>
+     * <li>Will override beanClass if specified in the given bean definition.
+     * <li>Will always take {@code abstract}, {@code scope},
+     * {@code lazyInit}, {@code autowireMode}, {@code dependencyCheck},
+     * and {@code dependsOn} from the given bean definition.
+     * <li>Will add {@code constructorArgumentValues}, {@code propertyValues},
+     * {@code methodOverrides} from the given bean definition to existing ones.
+     * <li>Will override {@code factoryBeanName}, {@code factoryMethodName},
+     * {@code initMethodName}, and {@code destroyMethodName} if specified
+     * in the given bean definition.
+     * </ul>
+     */
+    public void overrideFrom(BeanDefinition other) {
+        if (StringUtils.hasLength(other.getBeanClassName())) {
+            setBeanClassName(other.getBeanClassName());
+        }
+        if (StringUtils.hasLength(other.getScope())) {
+            setScope(other.getScope());
+        }
+        setAbstract(other.isAbstract());
+        if (StringUtils.hasLength(other.getFactoryBeanName())) {
+            setFactoryBeanName(other.getFactoryBeanName());
+        }
+        if (StringUtils.hasLength(other.getFactoryMethodName())) {
+            setFactoryMethodName(other.getFactoryMethodName());
+        }
+        setRole(other.getRole());
+        setSource(other.getSource());
+        copyAttributesFrom(other);
+
+        if (other instanceof AbstractBeanDefinition) {
+            AbstractBeanDefinition otherAbd = (AbstractBeanDefinition) other;
+            if (otherAbd.hasBeanClass()) {
+                setBeanClass(otherAbd.getBeanClass());
+            }
+            if (otherAbd.hasConstructorArgumentValues()) {
+                getConstructorArgumentValues().addArgumentValues(other.getConstructorArgumentValues());
+            }
+            if (otherAbd.hasPropertyValues()) {
+                getPropertyValues().addPropertyValues(other.getPropertyValues());
+            }
+            if (otherAbd.hasMethodOverrides()) {
+                getMethodOverrides().addOverrides(otherAbd.getMethodOverrides());
+            }
+            Boolean lazyInit = otherAbd.getLazyInit();
+            if (lazyInit != null) {
+                setLazyInit(lazyInit);
+            }
+            setAutowireMode(otherAbd.getAutowireMode());
+            setDependencyCheck(otherAbd.getDependencyCheck());
+            setDependsOn(otherAbd.getDependsOn());
+            setAutowireCandidate(otherAbd.isAutowireCandidate());
+            setPrimary(otherAbd.isPrimary());
+            copyQualifiersFrom(otherAbd);
+            setInstanceSupplier(otherAbd.getInstanceSupplier());
+            setNonPublicAccessAllowed(otherAbd.isNonPublicAccessAllowed());
+            setLenientConstructorResolution(otherAbd.isLenientConstructorResolution());
+            if (otherAbd.getInitMethodName() != null) {
+                setInitMethodName(otherAbd.getInitMethodName());
+                setEnforceInitMethod(otherAbd.isEnforceInitMethod());
+            }
+            if (otherAbd.getDestroyMethodName() != null) {
+                setDestroyMethodName(otherAbd.getDestroyMethodName());
+                setEnforceDestroyMethod(otherAbd.isEnforceDestroyMethod());
+            }
+            setSynthetic(otherAbd.isSynthetic());
+            setResource(otherAbd.getResource());
+        }
+        else {
+            getConstructorArgumentValues().addArgumentValues(other.getConstructorArgumentValues());
+            getPropertyValues().addPropertyValues(other.getPropertyValues());
+            setLazyInit(other.isLazyInit());
+            setResourceDescription(other.getResourceDescription());
+        }
+    }
+
+    /**
      * Apply the provided default values to this bean.
      * @param defaults the default settings to apply
      * @since 2.5
@@ -299,7 +380,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
     /**
      * Specify the class for this bean.
      */
-    public void setBeanClass(@Nullable Object beanClass) {
+    public void setBeanClass(@Nullable Class<?> beanClass) {
         this.beanClass = beanClass;
     }
 
@@ -387,7 +468,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
      * @see #SCOPE_PROTOTYPE
      */
     @Override
-    public boolean isProtoType() {
+    public boolean isPrototype() {
         return SCOPE_PROTOTYPE.equals(this.scope);
     }
 
@@ -554,6 +635,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
      * <p>If this value is {@code true} for exactly one bean among multiple
      * matching candidates, it will serve as a tie-breaker.
      */
+    @Override
     public void setPrimary(boolean primary) {
         this.primary = primary;
     }
