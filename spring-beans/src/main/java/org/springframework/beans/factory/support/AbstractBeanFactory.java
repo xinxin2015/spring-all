@@ -974,7 +974,14 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
         return beanName;
     }
 
-    protected void initBeanWrapper()
+    protected void initBeanWrapper(BeanWrapper bw) {
+        bw.setConversionService(getConversionService());
+        registerCustomEditors(bw);
+    }
+
+    protected void registerCustomEditors(PropertyEditorRegistry registry) {
+
+    }
 
     protected RootBeanDefinition getMergedLocalBeanDefinition(String beanName) throws BeansException {
         // Quick check on the concurrent map first, with minimal locking
