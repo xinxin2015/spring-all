@@ -192,6 +192,52 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
         return editor;
     }
 
+    @Nullable
+    protected Class<?> guessPropertyTypeFromEditors(String propertyName) {
+        if (this.customEditorsForPath != null) {
+            CustomEditorHolder editorHolder = this.customEditorsForPath.get(propertyName);
+            if (editorHolder == null) {
+                List<String> strippedPaths = new ArrayList<>();
+                addStrippedPropertyPaths(strippedPaths,"",propertyName);
+                for (Iterator<String> it = strippedPaths.iterator();it.hasNext() && editorHolder == null;) {
+                    String strippedName = it.next();
+                    editorHolder = this.customEditorsForPath.get(strippedName);
+                }
+            }
+            if (editorHolder != null) {
+                return editorHolder.getRegisteredType();
+            }
+        }
+        return null;
+    }
+
+    protected void copyCustomEditorsTo(PropertyEditorRegistry target, @Nullable String nestedProperty) {
+        String actualPropertyName =
+                (nestedProperty != null ? PropertyAccessorUtils.getPropertyName(nestedProperty) : null);
+        if (this.customEditors != null) {
+            this.customEditors.forEach(target::registerCustomEditor);
+        }
+        if (this.customEditorsForPath != null) {
+            this.customEditorsForPath.forEach((editorPath, editorHolder) -> {
+                if (nestedProperty != null) {
+                    int pos = PropertyAccessorUtils.getFirstNestedPropertySeparatorIndex(editorPath);
+                    if (pos != -1) {
+                        String editorNestedProperty = editorPath.substring(0, pos);
+                        String editorNestedPath = editorPath.substring(pos + 1);
+                        if (editorNestedProperty.equals(nestedProperty) || editorNestedProperty.equals(actualPropertyName)) {
+                            target.registerCustomEditor(
+                                    editorHolder.getRegisteredType(), editorNestedPath, editorHolder.getPropertyEditor());
+                        }
+                    }
+                }
+                else {
+                    target.registerCustomEditor(
+                            editorHolder.getRegisteredType(), editorPath, editorHolder.getPropertyEditor());
+                }
+            });
+        }
+    }
+
     private void addStrippedPropertyPaths(List<String> strippedPaths,String nestedPath,String propertyPath) {
         int startIndex = propertyPath.indexOf(PropertyAccessor.PROPERTY_KEY_PREFIX_CHAR);
         if (startIndex != -1) {
