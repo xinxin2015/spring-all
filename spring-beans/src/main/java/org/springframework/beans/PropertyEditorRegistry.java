@@ -26,7 +26,7 @@ public interface PropertyEditorRegistry {
      * @param requiredType the type of the property
      * @param propertyEditor the editor to register
      */
-    void registerCustomerEditor(Class<?> requiredType, PropertyEditor propertyEditor);
+    void registerCustomEditor(Class<?> requiredType, PropertyEditor propertyEditor);
 
     /**
      * Register the given custom property editor for the given type and
@@ -51,7 +51,7 @@ public interface PropertyEditorRegistry {
      * {@code null} if registering an editor for all properties of the given type
      * @param propertyEditor editor to register
      */
-    void registerCustomerEditor(@Nullable Class<?> requiredType,@Nullable String propertyPath,
+    void registerCustomEditor(@Nullable Class<?> requiredType,@Nullable String propertyPath,
                                 PropertyEditor propertyEditor);
 
     /**
