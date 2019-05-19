@@ -3,44 +3,42 @@
   <ID>JAVA</ID>
   <OriginalElement />
   <nodes>
-    <node x="0.0" y="79.0">org.springframework.beans.factory.HierarchicalBeanFactory</node>
-    <node x="0.0" y="232.0">org.springframework.core.SimpleAliasRegistry</node>
-    <node x="0.0" y="306.0">org.springframework.beans.factory.config.SingletonBeanRegistry</node>
-    <node x="301.0" y="306.0">java.lang.SuppressWarnings</node>
-    <node x="256.0" y="232.0">org.springframework.beans.factory.support.BeanDefinitionRegistry</node>
-    <node x="0.0" y="380.0">java.io.Serializable</node>
-    <node x="165.5" y="153.0">org.springframework.core.AliasRegistry</node>
-    <node x="198.0" y="0.0">org.springframework.beans.factory.BeanFactory</node>
-    <node x="296.0" y="79.0">org.springframework.beans.factory.ListableBeanFactory</node>
+    <node x="138.0" y="149.0">org.springframework.core.AliasRegistry</node>
+    <node x="0.0" y="77.0">org.springframework.beans.factory.HierarchicalBeanFactory</node>
+    <node x="0.0" y="226.0">org.springframework.core.SimpleAliasRegistry</node>
+    <node x="0.0" y="298.0">org.springframework.beans.factory.config.SingletonBeanRegistry</node>
+    <node x="164.0" y="0.0">org.springframework.beans.factory.BeanFactory</node>
+    <node x="216.0" y="226.0">org.springframework.beans.factory.support.BeanDefinitionRegistry</node>
+    <node x="248.0" y="77.0">org.springframework.beans.factory.ListableBeanFactory</node>
   </nodes>
   <notes />
   <edges>
     <edge source="org.springframework.core.SimpleAliasRegistry" target="org.springframework.core.AliasRegistry">
-      <point x="0.0" y="-14.5" />
-      <point x="118.0" y="207.0" />
-      <point x="209.5" y="207.0" />
-      <point x="-44.0" y="14.5" />
+      <point x="0.0" y="-13.5" />
+      <point x="98.0" y="201.0" />
+      <point x="175.0" y="201.0" />
+      <point x="-37.0" y="13.5" />
     </edge>
     <edge source="org.springframework.beans.factory.support.BeanDefinitionRegistry" target="org.springframework.core.AliasRegistry">
-      <point x="0.0" y="-14.5" />
-      <point x="389.0" y="207.0" />
-      <point x="297.5" y="207.0" />
-      <point x="44.0" y="14.5" />
+      <point x="0.0" y="-13.5" />
+      <point x="326.0" y="201.0" />
+      <point x="249.0" y="201.0" />
+      <point x="37.0" y="13.5" />
     </edge>
     <edge source="org.springframework.beans.factory.ListableBeanFactory" target="org.springframework.beans.factory.BeanFactory">
-      <point x="0.0" y="-14.5" />
-      <point x="414.0" y="54.0" />
-      <point x="315.0" y="54.0" />
-      <point x="39.0" y="14.5" />
+      <point x="0.0" y="-13.5" />
+      <point x="346.0" y="52.0" />
+      <point x="263.0" y="52.0" />
+      <point x="33.0" y="13.5" />
     </edge>
     <edge source="org.springframework.beans.factory.HierarchicalBeanFactory" target="org.springframework.beans.factory.BeanFactory">
-      <point x="0.0" y="-14.5" />
-      <point x="138.0" y="54.0" />
-      <point x="237.0" y="54.0" />
-      <point x="-39.0" y="14.5" />
+      <point x="0.0" y="-13.5" />
+      <point x="114.0" y="52.0" />
+      <point x="197.0" y="52.0" />
+      <point x="-33.0" y="13.5" />
     </edge>
   </edges>
-  <settings layout="Hierarchic Group" zoom="1.0" x="691.5" y="402.0" />
+  <settings layout="Hierarchic Group" zoom="1.0" x="222.0" y="162.5" />
   <SelectedNodes />
   <Categories />
   <SCOPE>All</SCOPE>
