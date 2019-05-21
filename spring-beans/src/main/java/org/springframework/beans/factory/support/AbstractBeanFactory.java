@@ -1010,7 +1010,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
         }
         if (!this.customEditors.isEmpty()) {
             this.customEditors.forEach((requiredType,editorClass) ->
-                    registry.registerCustomEditor(requiredType,));
+                    registry.registerCustomEditor(requiredType,BeanUtils.instantiateClass(editorClass)));
         }
     }
 
@@ -1225,7 +1225,28 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
         if (!mbd.isSingleton()) {
             return null;
         }
-
+        try {
+            FactoryBean<?> factoryBean = doGetBean(FACTORY_BEAN_PREFIX + beanName,FactoryBean.class,null,true);
+            return getTypeForFactoryBean(factoryBean);
+        } catch (BeanCreationException ex) {
+            if (ex.contains(BeanCurrentlyInCreationException.class)) {
+                if (logger.isTraceEnabled()) {
+                    logger.trace("Bean currently in creation on FactoryBean type check: " + ex);
+                }
+            }
+            else if (mbd.isLazyInit()) {
+                if (logger.isTraceEnabled()) {
+                    logger.trace("Bean creation exception on lazy FactoryBean type check: " + ex);
+                }
+            }
+            else {
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Bean creation exception on non-lazy FactoryBean type check: " + ex);
+                }
+            }
+            onSuppressedException(ex);
+            return null;
+        }
     }
 
     protected void markBeanAsCreated(String beanName) {
@@ -1296,6 +1317,16 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
             object = getObjectFromFactoryBean(factory, beanName, !synthetic);
         }
         return object;
+    }
+
+    public boolean isBeanNameInUse(String beanName) {
+        return isAlias(beanName) || containsBean(beanName) || hasDependentBean(beanName);
+    }
+
+    protected boolean requiresDestruction(Object bean, RootBeanDefinition mbd) {
+        return (bean.getClass() != NullBean.class &&
+                (DisposableBeanAdapter.hasDestroyMethod(bean, mbd) || (hasDestructionAwareBeanPostProcessors() &&
+                        DisposableBeanAdapter.hasApplicableProcessors(bean, getBeanPostProcessors()))));
     }
 
     protected abstract boolean containsBeanDefinition(String beanName);
