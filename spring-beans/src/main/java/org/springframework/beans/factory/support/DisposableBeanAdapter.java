@@ -9,13 +9,13 @@ import org.springframework.beans.factory.config.DestructionAwareBeanPostProcesso
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.security.AccessControlContext;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
+import java.security.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -100,6 +100,29 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
         this.beanPostProcessors = filterPostProcessors(postProcessors,bean);
     }
 
+    public DisposableBeanAdapter(Object bean,List<BeanPostProcessor> postProcessors,AccessControlContext acc) {
+        Assert.notNull(bean,"Disposable bean must not be null");
+        this.bean = bean;
+        this.beanName = bean.getClass().getName();
+        this.invokeDisposableBean = this.bean instanceof DisposableBean;
+        this.nonPublicAccessAllowed = true;
+        this.acc = acc;
+        this.beanPostProcessors = filterPostProcessors(postProcessors,bean);
+    }
+
+    private DisposableBeanAdapter(Object bean, String beanName, boolean invokeDisposableBean,
+                                  boolean nonPublicAccessAllowed, @Nullable String destroyMethodName,
+                                  @Nullable List<DestructionAwareBeanPostProcessor> postProcessors) {
+
+        this.bean = bean;
+        this.beanName = beanName;
+        this.invokeDisposableBean = invokeDisposableBean;
+        this.nonPublicAccessAllowed = nonPublicAccessAllowed;
+        this.acc = null;
+        this.destroyMethodName = destroyMethodName;
+        this.beanPostProcessors = postProcessors;
+    }
+
     @Nullable
     private String inferDestroyMethodIfNecessary(Object bean,RootBeanDefinition beanDefinition) {
         String destroyMethodName = beanDefinition.getDestroyMethodName();
@@ -161,6 +184,46 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
         } catch (IllegalArgumentException ex) {
             throw new BeanDefinitionValidationException("Could not find unique destroy method on bean with name '" +
                     this.beanName + ": " + ex.getMessage());
+        }
+    }
+
+    private void invokeCustomDestroyMethod(final Method destroyMethod) {
+        Class<?>[] paramTypes = destroyMethod.getParameterTypes();
+        final Object[] args = new Object[paramTypes.length];
+        if (paramTypes.length == 1) {
+            args[0] = Boolean.TRUE;
+        }
+        if (logger.isTraceEnabled()) {
+            logger.trace("Invoking destroy method '" + this.destroyMethodName +
+                    "' on bean with name '" + this.beanName + "'");
+        }
+        try {
+            if (System.getSecurityManager() != null) {
+                AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
+                    ReflectionUtils.makeAccessible(destroyMethod);
+                    return null;
+                });
+                try {
+                    AccessController.doPrivileged((PrivilegedExceptionAction<Object>) () -> destroyMethod.invoke(this.bean,args));
+                } catch (PrivilegedActionException ex) {
+                    throw (InvocationTargetException)ex.getException();
+                }
+            } else {
+                ReflectionUtils.makeAccessible(destroyMethod);
+                destroyMethod.invoke(this.bean,args);
+            }
+        } catch (InvocationTargetException ex) {
+            String msg = "Destroy method '" + this.destroyMethodName + "' on bean with name '" +
+                    this.beanName + "' threw an exception";
+            if (logger.isDebugEnabled()) {
+                logger.info(msg, ex.getTargetException());
+            }
+            else {
+                logger.info(msg + ": " + ex.getTargetException());
+            }
+        } catch (Throwable ex) {
+            logger.info("Failed to invoke destroy method '" + this.destroyMethodName +
+                    "' on bean with name '" + this.beanName + "'", ex);
         }
     }
 
