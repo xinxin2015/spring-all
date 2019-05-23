@@ -7,10 +7,7 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.config.DestructionAwareBeanPostProcessor;
 import org.springframework.lang.Nullable;
-import org.springframework.util.Assert;
-import org.springframework.util.CollectionUtils;
-import org.springframework.util.ReflectionUtils;
-import org.springframework.util.StringUtils;
+import org.springframework.util.*;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
@@ -187,6 +184,13 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
         }
     }
 
+    @Nullable
+    private Method findDestroyMethod(String name) {
+        return this.nonPublicAccessAllowed ?
+                BeanUtils.findMethodWithMinimalParameters(this.bean.getClass(),name) :
+                BeanUtils.findMethodWithMinimalParameters(this.bean.getClass().getMethods(),name);
+    }
+
     private void invokeCustomDestroyMethod(final Method destroyMethod) {
         Class<?>[] paramTypes = destroyMethod.getParameterTypes();
         final Object[] args = new Object[paramTypes.length];
@@ -227,10 +231,45 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
         }
     }
 
-    @Nullable
-    private Method findDestroyMethod(String name) {
-        return this.nonPublicAccessAllowed ?
-                BeanUtils.findMethodWithMinimalParameters(this.bean.getClass(),name) :
-                BeanUtils.findMethodWithMinimalParameters(this.bean.getClass().getMethods(),name);
+    protected Object writeReplace() {
+        List<DestructionAwareBeanPostProcessor> serializablePostProcessors = null;
+        if (this.beanPostProcessors != null) {
+            serializablePostProcessors = new ArrayList<>();
+            for (DestructionAwareBeanPostProcessor postProcessor : this.beanPostProcessors) {
+                if (postProcessor instanceof Serializable) {
+                    serializablePostProcessors.add(postProcessor);
+                }
+            }
+        }
+        return new DisposableBeanAdapter(this.bean,this.beanName,this.invokeDisposableBean,
+                this.nonPublicAccessAllowed,this.destroyMethodName,serializablePostProcessors);
     }
+
+    public static boolean hasDestroyMethod(Object bean,RootBeanDefinition beanDefinition) {
+        if (bean instanceof DisposableBean || bean instanceof AutoCloseable) {
+            return true;
+        }
+        String destroyMethodName = beanDefinition.getDestroyMethodName();
+        if (AbstractBeanDefinition.INFER_METHOD.equals(destroyMethodName)) {
+            return (ClassUtils.hasMethod(bean.getClass(),CLOSE_METHOD_NAME) ||
+                    ClassUtils.hasMethod(bean.getClass(),SHUTDOWN_METHOD_NAME));
+        }
+        return StringUtils.hasLength(destroyMethodName);
+    }
+
+    public static boolean hasApplicableProcessors(Object bean,
+                                                  List<BeanPostProcessor> postProcessors) {
+        if (!CollectionUtils.isEmpty(postProcessors)) {
+            for (BeanPostProcessor processor : postProcessors) {
+                if (processor instanceof DestructionAwareBeanPostProcessor) {
+                    DestructionAwareBeanPostProcessor dabpp = (DestructionAwareBeanPostProcessor) processor;
+                    if (dabpp.requiresDestruction(bean)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
 }
