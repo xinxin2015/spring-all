@@ -63,6 +63,14 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
     @Nullable
     private List<DestructionAwareBeanPostProcessor> beanPostProcessors;
 
+    /**
+     * Create a new DisposableBeanAdapter for the given bean.
+     * @param bean the bean instance (never {@code null})
+     * @param beanName the name of the bean
+     * @param beanDefinition the merged bean definition
+     * @param postProcessors the List of BeanPostProcessors
+     * (potentially DestructionAwareBeanPostProcessor), if any
+     */
     DisposableBeanAdapter(Object bean, String beanName, RootBeanDefinition beanDefinition,
                                  List<BeanPostProcessor> postProcessors,
                                  @Nullable AccessControlContext acc) {
@@ -97,6 +105,12 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
         this.beanPostProcessors = filterPostProcessors(postProcessors,bean);
     }
 
+    /**
+     * Create a new DisposableBeanAdapter for the given bean.
+     * @param bean the bean instance (never {@code null})
+     * @param postProcessors the List of BeanPostProcessors
+     * (potentially DestructionAwareBeanPostProcessor), if any
+     */
     public DisposableBeanAdapter(Object bean,List<BeanPostProcessor> postProcessors,AccessControlContext acc) {
         Assert.notNull(bean,"Disposable bean must not be null");
         this.bean = bean;
@@ -107,6 +121,9 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
         this.beanPostProcessors = filterPostProcessors(postProcessors,bean);
     }
 
+    /**
+     * Create a new DisposableBeanAdapter for the given bean.
+     */
     private DisposableBeanAdapter(Object bean, String beanName, boolean invokeDisposableBean,
                                   boolean nonPublicAccessAllowed, @Nullable String destroyMethodName,
                                   @Nullable List<DestructionAwareBeanPostProcessor> postProcessors) {
@@ -120,6 +137,19 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
         this.beanPostProcessors = postProcessors;
     }
 
+    /**
+     * If the current value of the given beanDefinition's "destroyMethodName" property is
+     * {@link AbstractBeanDefinition#INFER_METHOD}, then attempt to infer a destroy method.
+     * Candidate methods are currently limited to public, no-arg methods named "close" or
+     * "shutdown" (whether declared locally or inherited). The given BeanDefinition's
+     * "destroyMethodName" is updated to be null if no such method is found, otherwise set
+     * to the name of the inferred method. This constant serves as the default for the
+     * {@code @Bean#destroyMethod} attribute and the value of the constant may also be
+     * used in XML within the {@code <bean destroy-method="">} or {@code
+     * <beans default-destroy-method="">} attributes.
+     * <p>Also processes the {@link java.io.Closeable} and {@link java.lang.AutoCloseable}
+     * interfaces, reflectively calling the "close" method on implementing beans as well.
+     */
     @Nullable
     private String inferDestroyMethodIfNecessary(Object bean,RootBeanDefinition beanDefinition) {
         String destroyMethodName = beanDefinition.getDestroyMethodName();
@@ -143,6 +173,11 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
         return StringUtils.hasLength(destroyMethodName) ? destroyMethodName : null;
     }
 
+    /**
+     * Search for all DestructionAwareBeanPostProcessors in the List.
+     * @param processors the List to search
+     * @return the filtered List of DestructionAwareBeanPostProcessors
+     */
     @Nullable
     private List<DestructionAwareBeanPostProcessor> filterPostProcessors(List<BeanPostProcessor> processors,Object bean) {
         List<DestructionAwareBeanPostProcessor> filteredPostProcessors = null;
@@ -167,7 +202,43 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 
     @Override
     public void destroy() {
+        if (!CollectionUtils.isEmpty(this.beanPostProcessors)) {
+            for (DestructionAwareBeanPostProcessor processor : this.beanPostProcessors) {
+                processor.postProcessBeforeDestruction(this.bean,beanName);
+            }
+        }
+        if (this.invokeDisposableBean) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("Invoking destroy() on bean with name '" + this.beanName + "'");
+            }
+            try {
+                if (System.getSecurityManager() != null) {
+                    AccessController.doPrivileged((PrivilegedExceptionAction<Object>) () -> {
+                        ((DisposableBean)this.bean).destroy();
+                        return null;
+                    },this.acc);
+                } else {
+                    ((DisposableBean)this.bean).destroy();
+                }
+            } catch (Throwable ex) {
+                String msg = "Invocation of destroy method failed on bean with name '" + this.beanName + "'";
+                if (logger.isDebugEnabled()) {
+                    logger.info(msg, ex);
+                }
+                else {
+                    logger.info(msg + ": " + ex);
+                }
+            }
+        }
 
+        if (this.destroyMethod != null) {
+            invokeCustomDestroyMethod(this.destroyMethod);
+        } else if (this.destroyMethodName != null) {
+            Method methodToCall = determineDestroyMethod(this.destroyMethodName);
+            if (methodToCall != null) {
+                invokeCustomDestroyMethod(methodToCall);
+            }
+        }
     }
 
     @Nullable
@@ -191,6 +262,12 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
                 BeanUtils.findMethodWithMinimalParameters(this.bean.getClass().getMethods(),name);
     }
 
+    /**
+     * Invoke the specified custom destroy method on the given bean.
+     * <p>This implementation invokes a no-arg method if found, else checking
+     * for a method with a single boolean argument (passing in "true",
+     * assuming a "force" parameter), else logging an error.
+     */
     private void invokeCustomDestroyMethod(final Method destroyMethod) {
         Class<?>[] paramTypes = destroyMethod.getParameterTypes();
         final Object[] args = new Object[paramTypes.length];
@@ -231,6 +308,10 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
         }
     }
 
+    /**
+     * Serializes a copy of the state of this class,
+     * filtering out non-serializable BeanPostProcessors.
+     */
     protected Object writeReplace() {
         List<DestructionAwareBeanPostProcessor> serializablePostProcessors = null;
         if (this.beanPostProcessors != null) {
@@ -245,6 +326,11 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
                 this.nonPublicAccessAllowed,this.destroyMethodName,serializablePostProcessors);
     }
 
+    /**
+     * Check whether the given bean has any kind of destroy method to call.
+     * @param bean the bean instance
+     * @param beanDefinition the corresponding bean definition
+     */
     public static boolean hasDestroyMethod(Object bean,RootBeanDefinition beanDefinition) {
         if (bean instanceof DisposableBean || bean instanceof AutoCloseable) {
             return true;
@@ -257,6 +343,11 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
         return StringUtils.hasLength(destroyMethodName);
     }
 
+    /**
+     * Check whether the given bean has destruction-aware post-processors applying to it.
+     * @param bean the bean instance
+     * @param postProcessors the post-processor candidates
+     */
     public static boolean hasApplicableProcessors(Object bean,
                                                   List<BeanPostProcessor> postProcessors) {
         if (!CollectionUtils.isEmpty(postProcessors)) {
