@@ -1,4 +1,4 @@
 package org.springframework.beans.factory.support;
 
-public class CglibSubclassingInstantiationStrategy  {
+public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationStrategy {
 }
