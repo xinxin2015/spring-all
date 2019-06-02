@@ -13,18 +13,20 @@ public abstract class PropertyAccessorUtils {
 
     /**
      * Return the actual property name for the given property path.
+     *
      * @param propertyPath the property path to determine the property name
-     * for (can include property keys, for example for specifying a map entry)
+     *                     for (can include property keys, for example for specifying a map entry)
      * @return the actual property name, without any key elements
      */
     public static String getPropertyName(String propertyPath) {
         int separatorIndex = propertyPath.endsWith(PropertyAccessor.PROPERTY_KEY_SUFFIX) ?
                 propertyPath.indexOf(PropertyAccessor.PROPERTY_KEY_PREFIX_CHAR) : -1;
-        return separatorIndex != -1 ? propertyPath.substring(0,separatorIndex) : propertyPath;
+        return separatorIndex != -1 ? propertyPath.substring(0, separatorIndex) : propertyPath;
     }
 
     /**
      * Check whether the given property path indicates an indexed or nested property.
+     *
      * @param propertyPath the property path to check
      * @return whether the path indicates an indexed or nested property
      */
@@ -32,7 +34,7 @@ public abstract class PropertyAccessorUtils {
         if (propertyPath == null) {
             return false;
         }
-        for (int i = 0;i < propertyPath.length();i ++) {
+        for (int i = 0; i < propertyPath.length(); i++) {
             char ch = propertyPath.charAt(i);
             if (ch == PropertyAccessor.NESTED_PROPERTY_SEPARATOR_CHAR ||
                     ch == PropertyAccessor.PROPERTY_KEY_PREFIX_CHAR) {
@@ -45,31 +47,34 @@ public abstract class PropertyAccessorUtils {
     /**
      * Determine the first nested property separator in the
      * given property path, ignoring dots in keys (like "map[my.key]").
+     *
      * @param propertyPath the property path to check
      * @return the index of the nested property separator, or -1 if none
      */
     public static int getFirstNestedPropertySeparatorIndex(String propertyPath) {
-        return getNestedPropertySeparatorIndex(propertyPath,false);
+        return getNestedPropertySeparatorIndex(propertyPath, false);
     }
 
     /**
      * Determine the last nested property separator in the
      * given property path, ignoring dots in keys (like "map[my.key]").
+     *
      * @param propertyPath the property path to check
      * @return the index of the nested property separator, or -1 if none
      */
     public static int getLastNestedPropertySeparatorIndex(String propertyPath) {
-        return getNestedPropertySeparatorIndex(propertyPath,true);
+        return getNestedPropertySeparatorIndex(propertyPath, true);
     }
 
     /**
      * Determine the first (or last) nested property separator in the
      * given property path, ignoring dots in keys (like "map[my.key]").
+     *
      * @param propertyPath the property path to check
-     * @param last whether to return the last separator rather than the first
+     * @param last         whether to return the last separator rather than the first
      * @return the index of the nested property separator, or -1 if none
      */
-    private static int getNestedPropertySeparatorIndex(String propertyPath,boolean last) {
+    private static int getNestedPropertySeparatorIndex(String propertyPath, boolean last) {
         boolean inKey = false;
         int length = propertyPath.length();
         int i = last ? length - 1 : 0;
@@ -79,15 +84,15 @@ public abstract class PropertyAccessorUtils {
                 case PropertyAccessor.PROPERTY_KEY_SUFFIX_CHAR:
                     inKey = !inKey;
                     break;
-                    case PropertyAccessor.NESTED_PROPERTY_SEPARATOR_CHAR:
-                        if (!inKey) {
-                            return i;
-                        }
+                case PropertyAccessor.NESTED_PROPERTY_SEPARATOR_CHAR:
+                    if (!inKey) {
+                        return i;
+                    }
             }
             if (last) {
-                i --;
+                i--;
             } else {
-                i ++;
+                i++;
             }
         }
         return -1;
@@ -96,11 +101,12 @@ public abstract class PropertyAccessorUtils {
     /**
      * Determine whether the given registered path matches the given property path,
      * either indicating the property itself or an indexed element of the property.
-     * @param propertyPath the property path (typically without index)
+     *
+     * @param propertyPath   the property path (typically without index)
      * @param registeredPath the registered path (potentially with index)
      * @return whether the paths match
      */
-    public static boolean matchesProperty(String registeredPath,String propertyPath) {
+    public static boolean matchesProperty(String registeredPath, String propertyPath) {
         if (!registeredPath.startsWith(propertyPath)) {
             return false;
         }
@@ -119,6 +125,7 @@ public abstract class PropertyAccessorUtils {
      * Removes surrounding quotes from map keys:<br>
      * {@code map['key']} -> {@code map[key]}<br>
      * {@code map["key"]} -> {@code map[key]}
+     *
      * @param propertyName the bean property path
      * @return the canonical representation of the property path
      */
@@ -130,7 +137,7 @@ public abstract class PropertyAccessorUtils {
         StringBuilder sb = new StringBuilder(propertyName);
         int searchIndex = 0;
         while (searchIndex != -1) {
-            int keyStart = sb.indexOf(PropertyAccessor.PROPERTY_KEY_PREFIX,searchIndex);
+            int keyStart = sb.indexOf(PropertyAccessor.PROPERTY_KEY_PREFIX, searchIndex);
             searchIndex = -1;
             if (keyStart != -1) {
                 int keyEnd = sb.indexOf(PropertyAccessor.PROPERTY_KEY_SUFFIX,
@@ -152,6 +159,7 @@ public abstract class PropertyAccessorUtils {
 
     /**
      * Determine the canonical names for the given property paths.
+     *
      * @param propertyNames the bean property paths (as array)
      * @return the canonical representation of the property paths
      * (as array of the same size)
@@ -163,7 +171,7 @@ public abstract class PropertyAccessorUtils {
             return null;
         }
         String[] result = new String[propertyNames.length];
-        for (int i = 0;i < propertyNames.length;i ++) {
+        for (int i = 0; i < propertyNames.length; i++) {
             result[i] = canonicalPropertyName(propertyNames[i]);
         }
         return result;
