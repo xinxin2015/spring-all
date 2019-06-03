@@ -4,6 +4,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.core.CollectionFactory;
 import org.springframework.core.ResolvableType;
+import org.springframework.core.convert.ConversionException;
+import org.springframework.core.convert.ConverterNotFoundException;
 import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
@@ -335,6 +337,124 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
                     getRootInstance(), this.nestedPath + tokens.canonicalName, oldValue, pv.getValue());
             throw new MethodInvocationException(pce, ex);
         }
+    }
+
+    @Override
+    @Nullable
+    public Class<?> getPropertyType(String propertyName) {
+        try {
+            PropertyHandler ph = getPropertyHandler(propertyName);
+            if (ph != null) {
+                return ph.getPropertyType();
+            } else {
+                // Maybe an indexed/mapped property...
+                Object value = getPropertyValue(propertyName);
+                if (value != null) {
+                    return value.getClass();
+                }
+                // Check to see if there is a custom editor,
+                // which might give an indication on the desired target type.
+                Class<?> editorType = guessPropertyTypeFromEditors(propertyName);
+                if (editorType != null) {
+                    return editorType;
+                }
+            }
+        } catch (InvalidPropertyException ex) {
+            // Consider as not determinable.
+        }
+        return null;
+    }
+
+    @Override
+    @Nullable
+    public TypeDescriptor getPropertyTypeDescriptor(String propertyName) throws BeansException {
+        try {
+            AbstractNestablePropertyAccessor nestedPa = getPropertyAccessorForPropertyPath(propertyName);
+            String finalPath = getFinalPath(nestedPa,propertyName);
+            PropertyTokenHolder tokens = getPropertyNameTokens(finalPath);
+            PropertyHandler ph = nestedPa.getLocalPropertyHandler(propertyName);
+            if (ph != null) {
+                if (tokens.keys != null) {
+                    if (ph.isReadable() || ph.isWritable()) {
+                        return ph.nested(tokens.keys.length);
+                    }
+                } else {
+                    if (ph.isReadable() || ph.isWritable()) {
+                        return ph.toTypeDescripter();
+                    }
+                }
+            }
+        } catch (InvalidPropertyException ex) {
+            // Consider as not determinable.
+        }
+        return null;
+    }
+
+    @Override
+    public boolean isReadableProperty(String propertyName) {
+        try {
+            PropertyHandler ph = getLocalPropertyHandler(propertyName);
+            if (ph != null) {
+                return ph.isReadable();
+            } else {
+                // Maybe an indexed/mapped property...
+                getPropertyValue(propertyName);
+                return true;
+            }
+        } catch (InvalidPropertyException ex) {
+            // Cannot be evaluated, so can't be readable.
+        }
+        return false;
+    }
+
+    @Override
+    public boolean isWritableProperty(String propertyName) {
+        try {
+            PropertyHandler ph = getPropertyHandler(propertyName);
+            if (ph != null) {
+                return ph.isWritable();
+            }
+            else {
+                // Maybe an indexed/mapped property...
+                getPropertyValue(propertyName);
+                return true;
+            }
+        }
+        catch (InvalidPropertyException ex) {
+            // Cannot be evaluated, so can't be writable.
+        }
+        return false;
+    }
+
+    @Nullable
+    private Object convertIfNecessary(@Nullable String propertyName,@Nullable Object oldValue,
+                                      @Nullable Object newValue,@Nullable Class<?> requiredType,
+                                      @Nullable TypeDescriptor td) {
+        Assert.state(this.typeConverterDelegate != null,"No typeConvertDelegate");
+        try {
+            return this.typeConverterDelegate.convertIfNecessary(propertyName,oldValue,newValue,requiredType,td);
+        } catch (ConverterNotFoundException | IllegalStateException ex) {
+            PropertyChangeEvent pce =
+                    new PropertyChangeEvent(getRootInstance(), this.nestedPath + propertyName, oldValue, newValue);
+            throw new ConversionNotSupportedException(pce, requiredType, ex);
+        } catch (ConversionException | IllegalArgumentException ex) {
+            PropertyChangeEvent pce =
+                    new PropertyChangeEvent(getRootInstance(), this.nestedPath + propertyName, oldValue, newValue);
+            throw new TypeMismatchException(pce, requiredType, ex);
+        }
+    }
+
+    @Nullable
+    protected Object convertForProperty(String propertyName,@Nullable Object oldValue,@Nullable Object newValue,
+                                        TypeDescriptor td) {
+        return convertIfNecessary(propertyName,oldValue,newValue,td.getType(),td);
+    }
+
+    @Override
+    public Object getPropertyValue(String propertyName) throws BeansException {
+        AbstractNestablePropertyAccessor nestedPa = getPropertyAccessorForPropertyPath(propertyName);
+        PropertyTokenHolder tokens = getPropertyNameTokens(getFinalPath(nestedPa,propertyName));
+        return nestedPa.getPropertyValue(tokens);
     }
 
     @SuppressWarnings("unchecked")
