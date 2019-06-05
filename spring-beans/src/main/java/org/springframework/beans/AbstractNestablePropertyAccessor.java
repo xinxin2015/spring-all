@@ -17,8 +17,35 @@ import java.lang.reflect.*;
 import java.security.PrivilegedActionException;
 import java.util.*;
 
+/**
+ * A basic {@link ConfigurablePropertyAccessor} that provides the necessary
+ * infrastructure for all typical use cases.
+ *
+ * <p>This accessor will convert collection and array values to the corresponding
+ * target collections or arrays, if necessary. Custom property editors that deal
+ * with collections or arrays can either be written via PropertyEditor's
+ * {@code setValue}, or against a comma-delimited String via {@code setAsText},
+ * as String arrays are converted in such a format if the array itself is not
+ * assignable.
+ *
+ * @author Juergen Hoeller
+ * @author Stephane Nicoll
+ * @author Rod Johnson
+ * @author Rob Harrop
+ * @since 4.2
+ * @see #registerCustomEditor
+ * @see #setPropertyValues
+ * @see #setPropertyValue
+ * @see #getPropertyValue
+ * @see #getPropertyType
+ * @see BeanWrapper
+ * @see PropertyEditorRegistrySupport
+ */
 public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyAccessor {
 
+    /**
+     * We'll create a lot of these objects, so we don't want a new logger every time.
+     */
     private static final Log logger = LogFactory.getLog(AbstractNestablePropertyAccessor.class);
 
     private int autoGrowCollectionLimit = Integer.MAX_VALUE;
@@ -31,13 +58,25 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
     @Nullable
     Object rootObject;
 
+    /** Map with cached nested Accessors: nested path -> Accessor instance. */
     @Nullable
     private Map<String,AbstractNestablePropertyAccessor> nestedPropertyAccessors;
 
+    /**
+     * Create a new empty accessor. Wrapped instance needs to be set afterwards.
+     * Registers default editors.
+     * @see #setWrappedInstance
+     */
     protected AbstractNestablePropertyAccessor() {
         this(true);
     }
 
+    /**
+     * Create a new empty accessor. Wrapped instance needs to be set afterwards.
+     * @param registerDefaultEditors whether to register default editors
+     * (can be suppressed if the accessor won't need any type conversion)
+     * @see #setWrappedInstance
+     */
     protected AbstractNestablePropertyAccessor(boolean registerDefaultEditors) {
         if (registerDefaultEditors) {
             registerDefaultEditors();
@@ -45,21 +84,43 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
         this.typeConverterDelegate = new TypeConverterDelegate(this);
     }
 
+    /**
+     * Create a new accessor for the given object.
+     * @param object object wrapped by this accessor
+     */
     protected AbstractNestablePropertyAccessor(Object object) {
         registerDefaultEditors();
         setWrappedInstance(object);
     }
 
+    /**
+     * Create a new accessor, wrapping a new instance of the specified class.
+     * @param clazz class to instantiate and wrap
+     */
     protected AbstractNestablePropertyAccessor(Class<?> clazz) {
         registerDefaultEditors();
         setWrappedInstance(BeanUtils.instantiateClass(clazz));
     }
 
+    /**
+     * Create a new accessor for the given object,
+     * registering a nested path that the object is in.
+     * @param object object wrapped by this accessor
+     * @param nestedPath the nested path of the object
+     * @param rootObject the root object at the top of the path
+     */
     protected AbstractNestablePropertyAccessor(Object object,String nestedPath,Object rootObject) {
         registerDefaultEditors();
         setWrappedInstance(object,nestedPath,rootObject);
     }
 
+    /**
+     * Create a new accessor for the given object,
+     * registering a nested path that the object is in.
+     * @param object object wrapped by this accessor
+     * @param nestedPath the nested path of the object
+     * @param parent the containing accessor (must not be {@code null})
+     */
     protected AbstractNestablePropertyAccessor(Object object,String nestedPath,
                                                AbstractNestablePropertyAccessor parent) {
         setWrappedInstance(object,nestedPath,parent.getWrappedInstance());
@@ -69,18 +130,37 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
         setConversionService(parent.getConversionService());
     }
 
+    /**
+     * Specify a limit for array and collection auto-growing.
+     * <p>Default is unlimited on a plain accessor.
+     */
     public void setAutoGrowCollectionLimit(int autoGrowCollectionLimit) {
         this.autoGrowCollectionLimit = autoGrowCollectionLimit;
     }
 
+    /**
+     * Return the limit for array and collection auto-growing.
+     */
     public int getAutoGrowCollectionLimit() {
         return autoGrowCollectionLimit;
     }
 
+    /**
+     * Switch the target object, replacing the cached introspection results only
+     * if the class of the new object is different to that of the replaced object.
+     * @param object the new target object
+     */
     public void setWrappedInstance(Object object) {
         setWrappedInstance(object,"",null);
     }
 
+    /**
+     * Switch the target object, replacing the cached introspection results only
+     * if the class of the new object is different to that of the replaced object.
+     * @param object the new target object
+     * @param nestedPath the nested path of the object
+     * @param rootObject the root object at the top of the path
+     */
     public void setWrappedInstance(Object object,@Nullable String nestedPath,@Nullable Object rootObject) {
         this.wrappedObject = ObjectUtils.unwrapOptional(object);
         Assert.notNull(this.wrappedObject,"Target object must not be null");
@@ -99,15 +179,26 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
         return getWrappedInstance().getClass();
     }
 
+    /**
+     * Return the nested path of the object wrapped by this accessor.
+     */
     public final String getNestedPath() {
         return this.nestedPath;
     }
 
+    /**
+     * Return the root object at the top of the path of this accessor.
+     * @see #getNestedPath
+     */
     public final Object getRootInstance() {
         Assert.state(this.rootObject != null,"No root object");
         return this.rootObject;
     }
 
+    /**
+     * Return the class of the root object at the top of the path of this accessor.
+     * @see #getNestedPath
+     */
     public final Class<?> getRootClass() {
         return getRootInstance().getClass();
     }
@@ -311,7 +402,7 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
                         }
                     }
                     valueToApply = convertForProperty(tokens.canonicalName,oldValue,originalValue,
-                            ph.toTypeDescripter());
+                            ph.toTypeDescriptor());
                 }
                 pv.getOriginalPropertyValue().conversionNecessary = valueToApply != originalValue;
             }
@@ -380,7 +471,7 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
                     }
                 } else {
                     if (ph.isReadable() || ph.isWritable()) {
-                        return ph.toTypeDescripter();
+                        return ph.toTypeDescriptor();
                     }
                 }
             }
@@ -544,6 +635,14 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
         }
     }
 
+    /**
+     * Return the {@link PropertyHandler} for the specified {@code propertyName}, navigating
+     * if necessary. Return {@code null} if not found rather than throwing an exception.
+     * @param propertyName the property to obtain the descriptor for
+     * @return the property descriptor for the specified property,
+     * or {@code null} if not found
+     * @throws BeansException in case of introspection failure
+     */
     @Nullable
     protected PropertyHandler getPropertyHandler(String propertyName) throws BeansException {
         Assert.notNull(propertyName,"Property name must not be null");
@@ -551,11 +650,27 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
         return nestedPa.getLocalPropertyHandler(getFinalPath(nestedPa,propertyName));
     }
 
+    /**
+     * Return a {@link PropertyHandler} for the specified local {@code propertyName}.
+     * Only used to reach a property available in the current context.
+     * @param propertyName the name of a local property
+     * @return the handler for that property, or {@code null} if it has not been found
+     */
     @Nullable
     protected abstract PropertyHandler getLocalPropertyHandler(String propertyName);
 
+    /**
+     * Create a new nested property accessor instance.
+     * Can be overridden in subclasses to create a PropertyAccessor subclass.
+     * @param object object wrapped by this PropertyAccessor
+     * @param nestedPath the nested path of the object
+     * @return the nested PropertyAccessor instance
+     */
     protected abstract AbstractNestablePropertyAccessor newNestedPropertyAccessor(Object object,String nestedPath);
 
+    /**
+     * Create a {@link NotWritablePropertyException} for the specified property.
+     */
     protected abstract NotWritablePropertyException createNotWritablePropertyException(String propertyName);
 
     private Object growArrayIfNecessary(Object array,int index,String name) {
@@ -595,6 +710,12 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
         }
     }
 
+    /**
+     * Get the last component of the path. Also works if not nested.
+     * @param pa property accessor to work on
+     * @param nestedPath property path we know is nested
+     * @return last component of the path (the property on the target bean)
+     */
     protected final String getFinalPath(AbstractNestablePropertyAccessor pa,String nestedPath) {
         if (pa == this) {
             return nestedPath;
@@ -602,6 +723,11 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
         return nestedPath.substring(PropertyAccessorUtils.getLastNestedPropertySeparatorIndex(nestedPath) + 1);
     }
 
+    /**
+     * Recursively navigate to return a property accessor for the nested property path.
+     * @param propertyPath property path, which may be nested
+     * @return a property accessor for the target bean
+     */
     protected AbstractNestablePropertyAccessor getPropertyAccessorForPropertyPath(String propertyPath) {
         int pos = PropertyAccessorUtils.getFirstNestedPropertySeparatorIndex(propertyPath);
         // Handle nested properties recursively.
@@ -615,6 +741,14 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
         }
     }
 
+    /**
+     * Retrieve a Property accessor for the given nested property.
+     * Create a new one if not found in the cache.
+     * <p>Note: Caching nested PropertyAccessors is necessary now,
+     * to keep registered custom editors for nested properties.
+     * @param nestedProperty property to create the PropertyAccessor for
+     * @return the PropertyAccessor instance, either cached or newly created
+     */
     private AbstractNestablePropertyAccessor getNestedPropertyAccessor(String nestedProperty) {
         if (this.nestedPropertyAccessors == null) {
             this.nestedPropertyAccessors = new HashMap<>();
@@ -698,6 +832,11 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
         }
     }
 
+    /**
+     * Parse the given property name into the corresponding property name tokens.
+     * @param propertyName the property name to parse
+     * @return representation of the parsed property tokens
+     */
     private PropertyTokenHolder getPropertyNameTokens(String propertyName) {
         String actualName = null;
         List<String> keys = new ArrayList<>(2);
@@ -743,6 +882,9 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
         return sb.toString();
     }
 
+    /**
+     * A handler for a specific property.
+     */
     protected abstract static class PropertyHandler {
 
         private final Class<?> propertyType;
@@ -751,7 +893,7 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 
         private final boolean writable;
 
-        public PropertyTokenHolder(Class<?> propertyType,boolean readable,boolean writable) {
+        public PropertyHandler(Class<?> propertyType,boolean readable,boolean writable) {
             this.propertyType = propertyType;
             this.readable = readable;
             this.writable = writable;
@@ -769,7 +911,7 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
             return writable;
         }
 
-        public abstract TypeDescriptor toTypeDescripter();
+        public abstract TypeDescriptor toTypeDescriptor();
 
         public abstract ResolvableType getResolvableType();
 
@@ -797,6 +939,9 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
         public abstract void setValue(@Nullable Object value) throws Exception;
     }
 
+    /**
+     * Holder class used to store property tokens.
+     */
     protected static class PropertyTokenHolder {
 
         PropertyTokenHolder(String name) {
