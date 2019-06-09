@@ -709,8 +709,33 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
             return;
         }
 
-        if (System.getSecurityManager() != null) {
-            //TODO
+        if (System.getSecurityManager() != null && bw instanceof BeanWrapperImpl) {
+            ((BeanWrapperImpl) bw).setSecurityContext(getAccessControlContext());
         }
+
+        MutablePropertyValues mpvs = null;
+        List<PropertyValue> original;
+
+        if (pvs instanceof MutablePropertyValues) {
+            mpvs = (MutablePropertyValues) pvs;
+            if (mpvs.isConverted()) {
+                // Shortcut: use the pre-converted values as-is.
+                try {
+                    bw.setPropertyValues(mpvs);
+                    return;
+                } catch (BeansException ex) {
+                    throw new BeanCreationException(
+                            mbd.getResourceDescription(), beanName, "Error setting property values", ex);
+                }
+            }
+            original = mpvs.getPropertyValueList();
+        } else {
+            original = Arrays.asList(pvs.getPropertyValues());
+        }
+        TypeConverter converter = getCustomTypeConverter();
+        if (converter == null) {
+            converter = bw;
+        }
+        BeanDefinitionValueResolver
     }
 }

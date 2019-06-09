@@ -27,30 +27,84 @@ import java.util.List;
  */
 public abstract class PropertyMatches {
 
+    /** Default maximum property distance: 2. */
     public static final int DEFAULT_MAX_INSTANCE = 2;
+
+    // Static factory methods
+
+    /**
+     * Create PropertyMatches for the given bean property.
+     * @param propertyName the name of the property to find possible matches for
+     * @param beanClass the bean class to search for matches
+     */
+    public static PropertyMatches forProperty(String propertyName,Class<?> beanClass) {
+        return forProperty(propertyName,beanClass,DEFAULT_MAX_INSTANCE);
+    }
+
+    /**
+     * Create PropertyMatches for the given bean property.
+     * @param propertyName the name of the property to find possible matches for
+     * @param beanClass the bean class to search for matches
+     * @param maxDistance the maximum property distance allowed for matches
+     */
+    public static PropertyMatches forProperty(String propertyName,Class<?> beanClass,int maxDistance) {
+        return new BeanPropertyMatches(propertyName,beanClass,maxDistance);
+    }
+
+    /**
+     * Create PropertyMatches for the given field property.
+     * @param propertyName the name of the field to find possible matches for
+     * @param beanClass the bean class to search for matches
+     */
+    public static PropertyMatches forField(String propertyName,Class<?> beanClass) {
+        return forField(propertyName,beanClass,DEFAULT_MAX_INSTANCE);
+    }
+
+    /**
+     * Create PropertyMatches for the given field property.
+     * @param propertyName the name of the field to find possible matches for
+     * @param beanClass the bean class to search for matches
+     * @param maxDistance the maximum property distance allowed for matches
+     */
+    public static PropertyMatches forField(String propertyName, Class<?> beanClass, int maxDistance) {
+        return new FieldPropertyMatches(propertyName,beanClass,maxDistance);
+    }
+
+    // Instance state
 
     private final String propertyName;
 
     private final String[] possibleMatches;
 
-    public static PropertyMatches forField(String propertyName, Class<?> beanClass, int maxDistance) {
-        return new
-    }
-
+    /**
+     * Create a new PropertyMatches instance for the given property and possible matches.
+     */
     private PropertyMatches(String propertyName, String[] possibleMatches) {
         this.propertyName = propertyName;
         this.possibleMatches = possibleMatches;
     }
 
+    /**
+     * Return the name of the requested property.
+     */
     public String getPropertyName() {
         return propertyName;
     }
 
+    /**
+     * Return the calculated possible matches.
+     */
     public String[] getPossibleMatches() {
         return possibleMatches;
     }
 
+    /**
+     * Build an error message for the given invalid property name,
+     * indicating the possible property matches.
+     */
     public abstract String buildErrorMessage();
+
+    // Implementation support for subclasses
 
     protected void appendHintMessage(StringBuilder msg) {
         msg.append("Did you mean ");
@@ -66,6 +120,13 @@ public abstract class PropertyMatches {
         msg.append("'?");
     }
 
+    /**
+     * Calculate the distance between the given two Strings
+     * according to the Levenshtein algorithm.
+     * @param s1 the first String
+     * @param s2 the second String
+     * @return the distance value
+     */
     private static int calculateStringDistance(String s1, String s2) {
         if (s1.isEmpty()) {
             return s2.length();
@@ -98,12 +159,21 @@ public abstract class PropertyMatches {
         return d[s1.length()][s2.length()];
     }
 
+    // Concrete subclasses
+
     private static class BeanPropertyMatches extends PropertyMatches {
 
         private BeanPropertyMatches(String propertyName, Class<?> beanClass, int maxDistance) {
             super(propertyName, calculateMatches(propertyName,BeanUtils.getPropertyDescriptors(beanClass),maxDistance));
         }
 
+        /**
+         * Generate possible property alternatives for the given property and class.
+         * Internally uses the {@code getStringDistance} method, which in turn uses
+         * the Levenshtein algorithm to determine the distance between two Strings.
+         * @param descriptors the JavaBeans property descriptors to search
+         * @param maxDistance the maximum distance to accept
+         */
         private static String[] calculateMatches(String name, PropertyDescriptor[] descriptors, int maxDistance) {
             List<String> candidates = new ArrayList<>();
             for (PropertyDescriptor pd : descriptors) {

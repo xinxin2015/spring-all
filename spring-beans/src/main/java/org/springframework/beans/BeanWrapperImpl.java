@@ -10,39 +10,115 @@ import java.beans.PropertyDescriptor;
 import java.lang.reflect.Method;
 import java.security.*;
 
+/**
+ * Default {@link BeanWrapper} implementation that should be sufficient
+ * for all typical use cases. Caches introspection results for efficiency.
+ *
+ * <p>Note: Auto-registers default property editors from the
+ * {@code org.springframework.beans.propertyeditors} package, which apply
+ * in addition to the JDK's standard PropertyEditors. Applications can call
+ * the {@link #registerCustomEditor(Class, java.beans.PropertyEditor)} method
+ * to register an editor for a particular instance (i.e. they are not shared
+ * across the application). See the base class
+ * {@link PropertyEditorRegistrySupport} for details.
+ *
+ * <p><b>NOTE: As of Spring 2.5, this is - for almost all purposes - an
+ * internal class.</b> It is just public in order to allow for access from
+ * other framework packages. For standard application access purposes, use the
+ * {@link PropertyAccessorFactory#forBeanPropertyAccess} factory method instead.
+ *
+ * @author Rod Johnson
+ * @author Juergen Hoeller
+ * @author Rob Harrop
+ * @author Stephane Nicoll
+ * @since 15 April 2001
+ * @see #registerCustomEditor
+ * @see #setPropertyValues
+ * @see #setPropertyValue
+ * @see #getPropertyValue
+ * @see #getPropertyType
+ * @see BeanWrapper
+ * @see PropertyEditorRegistrySupport
+ */
 public class BeanWrapperImpl extends AbstractNestablePropertyAccessor implements BeanWrapper {
 
+    /**
+     * Cached introspections results for this object, to prevent encountering
+     * the cost of JavaBeans introspection every time.
+     */
     @Nullable
     private CachedIntrospectionResults cachedIntrospectionResults;
 
+    /**
+     * The security context used for invoking the property methods.
+     */
     @Nullable
     private AccessControlContext acc;
 
+    /**
+     * Create a new empty BeanWrapperImpl. Wrapped instance needs to be set afterwards.
+     * Registers default editors.
+     * @see #setWrappedInstance
+     */
     public BeanWrapperImpl() {
         this(true);
     }
 
+    /**
+     * Create a new empty BeanWrapperImpl. Wrapped instance needs to be set afterwards.
+     * @param registerDefaultEditors whether to register default editors
+     * (can be suppressed if the BeanWrapper won't need any type conversion)
+     * @see #setWrappedInstance
+     */
     public BeanWrapperImpl(boolean registerDefaultEditors) {
         super(registerDefaultEditors);
     }
 
+    /**
+     * Create a new BeanWrapperImpl for the given object.
+     * @param object object wrapped by this BeanWrapper
+     */
     public BeanWrapperImpl(Object object) {
         super(object);
     }
 
+    /**
+     * Create a new BeanWrapperImpl, wrapping a new instance of the specified class.
+     * @param clazz class to instantiate and wrap
+     */
     public BeanWrapperImpl(Class<?> clazz) {
         super(clazz);
     }
 
+    /**
+     * Create a new BeanWrapperImpl for the given object,
+     * registering a nested path that the object is in.
+     * @param object object wrapped by this BeanWrapper
+     * @param nestedPath the nested path of the object
+     * @param rootObject the root object at the top of the path
+     */
     public BeanWrapperImpl(Object object,String nestedPath,Object rootObject) {
         super(object,nestedPath,rootObject);
     }
 
+    /**
+     * Create a new BeanWrapperImpl for the given object,
+     * registering a nested path that the object is in.
+     * @param object object wrapped by this BeanWrapper
+     * @param nestedPath the nested path of the object
+     * @param parent the containing BeanWrapper (must not be {@code null})
+     */
     private BeanWrapperImpl(Object object,String nestedPath,BeanWrapperImpl parent) {
         super(object,nestedPath,parent);
         setSecurityContext(parent.acc);
     }
 
+    /**
+     * Set a bean instance to hold, without any unwrapping of {@link java.util.Optional}.
+     * @param object the actual target object
+     * @since 4.3
+     * @see #setWrappedInstance(Object)
+     */
     public void setBeanInstance(Object object) {
         this.wrappedObject = object;
         this.rootObject = object;
@@ -56,12 +132,21 @@ public class BeanWrapperImpl extends AbstractNestablePropertyAccessor implements
         setIntrospectionClass(getWrappedClass());
     }
 
+    /**
+     * Set the class to introspect.
+     * Needs to be called when the target object changes.
+     * @param clazz the class to introspect
+     */
     protected void setIntrospectionClass(Class<?> clazz)  {
         if (this.cachedIntrospectionResults != null && this.cachedIntrospectionResults.getBeanClass() != clazz) {
             this.cachedIntrospectionResults = null;
         }
     }
 
+    /**
+     * Obtain a lazily initialized CachedIntrospectionResults instance
+     * for the wrapped object.
+     */
     private CachedIntrospectionResults getCachedIntrospectionResults() {
         if (this.cachedIntrospectionResults == null) {
             this.cachedIntrospectionResults = CachedIntrospectionResults.forClass(getWrappedClass());
@@ -69,15 +154,33 @@ public class BeanWrapperImpl extends AbstractNestablePropertyAccessor implements
         return this.cachedIntrospectionResults;
     }
 
+    /**
+     * Set the security context used during the invocation of the wrapped instance methods.
+     * Can be null.
+     */
     public void setSecurityContext(@Nullable AccessControlContext acc) {
         this.acc = acc;
     }
 
+    /**
+     * Return the security context used during the invocation of the wrapped instance methods.
+     * Can be null.
+     */
     @Nullable
     public AccessControlContext getSecurityContext() {
         return this.acc;
     }
 
+    /**
+     * Convert the given value for the specified property to the latter's type.
+     * <p>This method is only intended for optimizations in a BeanFactory.
+     * Use the {@code convertIfNecessary} methods for programmatic conversion.
+     * @param value the value to convert
+     * @param propertyName the target property
+     * (note that nested or indexed properties are not supported here)
+     * @return the new value, possibly the result of type conversion
+     * @throws TypeMismatchException if type conversion failed
+     */
     @Nullable
     public Object convertForProperty(@Nullable Object value,String propertyName) throws TypeMismatchException {
         CachedIntrospectionResults cachedIntrospectionResults = getCachedIntrospectionResults();
@@ -202,5 +305,4 @@ public class BeanWrapperImpl extends AbstractNestablePropertyAccessor implements
             }
         }
     }
-
 }
