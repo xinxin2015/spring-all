@@ -185,8 +185,8 @@ public class TypedStringValue implements BeanMetadataElement {
      * Mark this value as dynamic, i.e. as containing an expression
      * and hence not being subject to caching.
      */
-    public void setDynamic(boolean dynamic) {
-        this.dynamic = dynamic;
+    public void setDynamic() {
+        this.dynamic = true;
     }
 
     /**

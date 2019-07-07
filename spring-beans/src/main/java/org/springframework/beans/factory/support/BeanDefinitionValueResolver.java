@@ -15,11 +15,21 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
+/**
+ * Helper class for use in bean factory implementations,
+ * resolving values contained in bean definition objects
+ * into the actual values applied to the target bean instance.
+ *
+ * <p>Operates on an {@link AbstractBeanFactory} and a plain
+ * {@link org.springframework.beans.factory.config.BeanDefinition} object.
+ * Used by {@link AbstractAutowireCapableBeanFactory}.
+ *
+ * @author Juergen Hoeller
+ * @since 1.2
+ * @see AbstractAutowireCapableBeanFactory
+ */
 class BeanDefinitionValueResolver {
 
     private final AbstractBeanFactory beanFactory;
@@ -30,6 +40,13 @@ class BeanDefinitionValueResolver {
 
     private final TypeConverter typeConverter;
 
+    /**
+     * Create a BeanDefinitionValueResolver for the given BeanFactory and BeanDefinition.
+     * @param beanFactory the BeanFactory to resolve against
+     * @param beanName the name of the bean that we work on
+     * @param beanDefinition the BeanDefinition of the bean that we work on
+     * @param typeConverter the TypeConverter to use for resolving TypedStringValues
+     */
     BeanDefinitionValueResolver(AbstractBeanFactory beanFactory, String beanName, BeanDefinition beanDefinition,
                                 TypeConverter typeConverter) {
         this.beanFactory = beanFactory;
@@ -38,6 +55,24 @@ class BeanDefinitionValueResolver {
         this.typeConverter = typeConverter;
     }
 
+    /**
+     * Given a PropertyValue, return a value, resolving any references to other
+     * beans in the factory if necessary. The value could be:
+     * <li>A BeanDefinition, which leads to the creation of a corresponding
+     * new bean instance. Singleton flags and names of such "inner beans"
+     * are always ignored: Inner beans are anonymous prototypes.
+     * <li>A RuntimeBeanReference, which must be resolved.
+     * <li>A ManagedList. This is a special collection that may contain
+     * RuntimeBeanReferences or Collections that will need to be resolved.
+     * <li>A ManagedSet. May also contain RuntimeBeanReferences or
+     * Collections that will need to be resolved.
+     * <li>A ManagedMap. In this case the value may be a RuntimeBeanReference
+     * or Collection that will need to be resolved.
+     * <li>An ordinary object or {@code null}, in which case it's left alone.
+     * @param argName the name of the argument that the value is defined for
+     * @param value the value object to resolve
+     * @return the resolved object
+     */
     @Nullable
     Object resolveValueIfNecessary(Object argName, @Nullable Object value) {
         // We must check each value to see whether it requires a runtime reference
@@ -87,14 +122,111 @@ class BeanDefinitionValueResolver {
         } else if (value instanceof ManagedList) {
             // May need to resolve contained runtime references.
             return resolveManagedList(argName, (List<?>) value);
+        } else if (value instanceof ManagedSet) {
+            // May need to resolve contained runtime references.
+            return resolveManagedSet(argName, (Set<?>) value);
+        } else if (value instanceof ManagedMap) {
+            // May need to resolve contained runtime references.
+            return resolveManagedMap(argName, (Map<?, ?>) value);
+        } else if (value instanceof ManagedProperties) {
+            Properties original = (Properties) value;
+            Properties copy = new Properties();
+            original.forEach((propKey,propValue) -> {
+                if (propKey instanceof TypedStringValue) {
+                    propKey = evaluate((TypedStringValue) propKey);
+                }
+                if (propValue instanceof TypedStringValue) {
+                    propValue = evaluate((TypedStringValue) propValue);
+                }
+                if (propKey == null || propValue == null) {
+                    throw new BeanCreationException(this.beanDefinition.getResourceDescription(), this.beanName,
+                            "Error converting Properties key/value pair for " + argName + ": resolved to null");
+                }
+                copy.put(propKey,propValue);
+            });
+            return copy;
+        } else if (value instanceof TypedStringValue) {
+            // Convert value to target type here.
+            TypedStringValue typedStringValue = (TypedStringValue) value;
+            Object valueObject = evaluate(typedStringValue);
+            try {
+                Class<?> resolvedTargetType = resolveTargetType(typedStringValue);
+                if (resolvedTargetType != null) {
+                    return this.typeConverter.convertIfNecessary(valueObject,resolvedTargetType);
+                } else {
+                    return valueObject;
+                }
+            } catch (Throwable ex) {
+                // Improve the message by showing the context.
+                throw new BeanCreationException(
+                        this.beanDefinition.getResourceDescription(), this.beanName,
+                        "Error converting typed String value for " + argName, ex);
+            }
+        } else if (value instanceof NullBean) {
+            return null;
+        } else {
+            return evaluate(value);
         }
     }
 
+    /**
+     * Evaluate the given value as an expression, if necessary.
+     * @param value the candidate value (may be an expression)
+     * @return the resolved value
+     */
+    @Nullable
+    protected Object evaluate(TypedStringValue value) {
+        Object result = doEvaluate(value.getValue());
+        if (ObjectUtils.nullSafeEquals(result,value.getValue())) {
+            value.setDynamic();
+        }
+        return result;
+    }
+
+    /**
+     * Evaluate the given value as an expression, if necessary.
+     * @param value the original value (may be an expression)
+     * @return the resolved value if necessary, or the original value
+     */
+    @Nullable
+    protected Object evaluate(@Nullable Object value) {
+        if (value instanceof String) {
+            return doEvaluate((String) value);
+        } else if (value instanceof String[]) {
+            String[] values = (String[]) value;
+            boolean actuallyResolved = false;
+            Object[] resolvedValues = new Object[values.length];
+            for (int i = 0;i < values.length;i ++) {
+                String originalValue = values[i];
+                Object resolvedValue = doEvaluate(originalValue);
+                if (resolvedValue != originalValue) {
+                    actuallyResolved = true;
+                }
+                resolvedValues[i] = resolvedValue;
+            }
+            return (actuallyResolved ? resolvedValues : values);
+        } else {
+            return value;
+        }
+    }
+
+    /**
+     * Evaluate the given String value as an expression, if necessary.
+     * @param value the original value (may be an expression)
+     * @return the resolved value if necessary, or the original String value
+     */
     @Nullable
     private Object doEvaluate(@Nullable String value) {
         return this.beanFactory.evaluateBeanDefinitionString(value, this.beanDefinition);
     }
 
+    /**
+     * Resolve the target type in the given TypedStringValue.
+     * @param value the TypedStringValue to resolve
+     * @return the resolved target type (or {@code null} if none specified)
+     * @throws ClassNotFoundException if the specified type cannot be resolved
+     * @see TypedStringValue#resolveTargetType
+     */
     @Nullable
     protected Class<?> resolveTargetType(TypedStringValue value) throws ClassNotFoundException {
         if (value.hasTargetType()) {
@@ -103,6 +235,13 @@ class BeanDefinitionValueResolver {
         return value.resolveTargetType(this.beanFactory.getBeanClassLoader());
     }
 
+    /**
+     * Resolve an inner bean definition.
+     * @param argName the name of the argument that the inner bean is defined for
+     * @param innerBeanName the name of the inner bean
+     * @param innerBd the bean definition for the inner bean
+     * @return the resolved inner bean instance
+     */
     @Nullable
     private Object resolveInnerBean(Object argName, String innerBeanName, BeanDefinition innerBd) {
         RootBeanDefinition mbd = null;
@@ -144,6 +283,12 @@ class BeanDefinitionValueResolver {
         }
     }
 
+    /**
+     * Checks the given bean name whether it is unique. If not already unique,
+     * a counter is added, increasing the counter until the name is unique.
+     * @param innerBeanName the original name for the inner bean
+     * @return the adapted name for the inner bean
+     */
     private String adaptInnerBeanName(String innerBeanName) {
         String actualInnerBeanName = innerBeanName;
         int counter = 0;
@@ -154,6 +299,9 @@ class BeanDefinitionValueResolver {
         return actualInnerBeanName;
     }
 
+    /**
+     * Resolve a reference to another bean in the factory.
+     */
     @Nullable
     private Object resolveReference(Object argName, RuntimeBeanReference ref) {
         try {
@@ -183,6 +331,9 @@ class BeanDefinitionValueResolver {
         }
     }
 
+    /**
+     * For each element in the managed array, resolve reference if necessary.
+     */
     private Object resolveManagedArray(Object argName, List<?> ml, Class<?> elementType) {
         Object resolved = Array.newInstance(elementType, ml.size());
         for (int i = 0; i < ml.size(); i++) {
@@ -191,6 +342,9 @@ class BeanDefinitionValueResolver {
         return resolved;
     }
 
+    /**
+     * For each element in the managed list, resolve reference if necessary.
+     */
     private List<?> resolveManagedList(Object argName, List<?> ml) {
         List<Object> resolved = new ArrayList<>(ml.size());
         for (int i = 0; i < ml.size(); i++) {
@@ -200,6 +354,9 @@ class BeanDefinitionValueResolver {
         return resolved;
     }
 
+    /**
+     * For each element in the managed set, resolve reference if necessary.
+     */
     private Set<?> resolveManagedSet(Object argName, Set<?> ms) {
         Set<Object> resolved = new LinkedHashSet<>(ms.size());
         int i = 0;
@@ -210,6 +367,22 @@ class BeanDefinitionValueResolver {
         return resolved;
     }
 
+    /**
+     * For each element in the managed map, resolve reference if necessary.
+     */
+    private Map<?,?> resolveManagedMap(Object argName,Map<?,?> mm) {
+        Map<Object,Object> resolved = new LinkedHashMap<>(mm.size());
+        mm.forEach((key,value) -> {
+            Object resolvedKey = resolveValueIfNecessary(argName,key);
+            Object resolvedValue = resolveValueIfNecessary(new KeyedArgName(argName,key),value);
+            resolved.put(resolvedKey,resolvedValue);
+        });
+        return resolved;
+    }
+
+    /**
+     * Holder class used for delayed toString building.
+     */
     private static class KeyedArgName {
 
         private final Object argName;

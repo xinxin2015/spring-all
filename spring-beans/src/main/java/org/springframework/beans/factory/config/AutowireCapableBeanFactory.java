@@ -173,7 +173,7 @@ public interface AutowireCapableBeanFactory extends BeanFactory {
      * @see #AUTOWIRE_BY_TYPE
      * @see #AUTOWIRE_CONSTRUCTOR
      */
-    Object creatBean(Class<?> beanClass,int autowireMode,boolean dependencyCheck) throws BeansException;
+    Object createBean(Class<?> beanClass,int autowireMode,boolean dependencyCheck) throws BeansException;
 
     /**
      * Instantiate a new bean instance of the given class with the specified autowire
